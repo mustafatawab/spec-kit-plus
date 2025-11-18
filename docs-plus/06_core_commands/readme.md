@@ -69,7 +69,9 @@ ADRs created in history/adr/ (if decisions are significant)
 | `/sp.adr`           | Review architectural decisions         | ❌ No\*      | ✅ Explicit        |
 | `/sp.tasks`         | Break down implementation              | ✅ Automatic | ❌ No              |
 | `/sp.implement`     | Execute TDD cycle                      | ✅ Automatic | ❌ No              |
+| `/sp.review`        | Review implementation vs spec          | ❌ No        | ❌ No              |
 | `/sp.git.commit_pr` | Generate commits/PR from finished loop | ❌ No        | ❌ No              |
+| `/sp.worktree`      | Manage git worktrees for parallel dev  | ❌ No        | ❌ No              |
 | Debugging           | Fix errors                             | ✅ Automatic | ❌ No              |
 | Refactoring         | Clean up code                          | ✅ Automatic | ❌ No              |
 | `/sp.phr` (manual)  | Override automatic PHR                 | ✅ Explicit  | ❌ No              |
