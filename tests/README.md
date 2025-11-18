@@ -23,30 +23,70 @@ cd tests/worktree
 - Script integration (create-new-feature.sh)
 - Edge cases and error handling
 
+**Test Count:** 31 tests (20 bash + 11 PowerShell)
+
 **Documentation:** [tests/worktree/README.md](worktree/README.md)
+
+### Review Command Tests
+
+Tests for `/sp.review` command, including all review modes, file creation, and multi-agent support.
+
+**Location:** `tests/review/`
+
+**Quick Run:**
+```bash
+cd tests/review
+./run-all-tests.sh
+```
+
+**Coverage:**
+- Script validation and help output
+- All 4 review modes (quick, thorough, security, performance)
+- Context file creation (spec, plan, tasks, constitution)
+- Review template structure
+- Agent parameter support
+- JSON output format
+- Error handling (missing spec/plan, wrong branch)
+- Optional content (tasks, data model)
+
+**Test Count:** 39 tests (25 bash + 14 PowerShell)
+
+**Documentation:** [tests/review/README.md](review/README.md)
 
 ## Running All Tests
 
 ### Run Everything
 ```bash
-# From repository root
+# Run all test suites
 ./tests/worktree/run-all-tests.sh
+./tests/review/run-all-tests.sh
 
 # Or from tests directory
 cd tests
 ./worktree/run-all-tests.sh
+./review/run-all-tests.sh
 ```
 
 ### Run Specific Test Suites
 
-**Bash only:**
+**Worktree - Bash only:**
 ```bash
 ./tests/worktree/test-worktree.sh
 ```
 
-**PowerShell only:**
+**Worktree - PowerShell only:**
 ```powershell
 .\tests\worktree\test-worktree.ps1
+```
+
+**Review - Bash only:**
+```bash
+./tests/review/test-review.sh
+```
+
+**Review - PowerShell only:**
+```powershell
+.\tests\review\test-review.ps1
 ```
 
 ### Verbose Mode
@@ -101,10 +141,15 @@ pwsh --version
 ```
 tests/
 ├── README.md                    ← This file
-└── worktree/                    ← Git worktree test suite
-    ├── README.md               ← Detailed worktree test documentation
-    ├── test-worktree.sh        ← Bash test suite
-    ├── test-worktree.ps1       ← PowerShell test suite
+├── worktree/                    ← Git worktree test suite
+│   ├── README.md               ← Detailed worktree test documentation
+│   ├── test-worktree.sh        ← Bash test suite (20 tests)
+│   ├── test-worktree.ps1       ← PowerShell test suite (11 tests)
+│   └── run-all-tests.sh        ← Run both bash and PowerShell tests
+└── review/                      ← Review command test suite
+    ├── README.md               ← Detailed review test documentation
+    ├── test-review.sh          ← Bash test suite (25 tests)
+    ├── test-review.ps1         ← PowerShell test suite (14 tests)
     └── run-all-tests.sh        ← Run both bash and PowerShell tests
 ```
 
@@ -120,25 +165,25 @@ name: Tests
 on: [push, pull_request]
 
 jobs:
-  test-worktree:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-
-      - name: Run Bash Tests
-        run: |
-          cd tests/worktree
-          ./test-worktree.sh
 
       - name: Install PowerShell
         run: |
           sudo apt-get update
           sudo apt-get install -y powershell
 
-      - name: Run PowerShell Tests
+      - name: Run Worktree Tests
         run: |
           cd tests/worktree
-          pwsh ./test-worktree.ps1
+          ./run-all-tests.sh
+
+      - name: Run Review Tests
+        run: |
+          cd tests/review
+          ./run-all-tests.sh
 ```
 
 ### Pre-commit Hook
@@ -148,8 +193,10 @@ Create `.git/hooks/pre-commit`:
 ```bash
 #!/bin/bash
 echo "Running tests before commit..."
-./tests/worktree/run-all-tests.sh
-exit $?
+./tests/worktree/run-all-tests.sh || exit 1
+./tests/review/run-all-tests.sh || exit 1
+echo "All tests passed!"
+exit 0
 ```
 
 Make executable:
@@ -389,9 +436,17 @@ Current test coverage:
 
 ### Test Count
 
-- **Bash:** 20 tests
-- **PowerShell:** 11 tests
-- **Total:** 31 tests
+**Worktree Tests:**
+- Bash: 20 tests
+- PowerShell: 11 tests
+- Subtotal: 31 tests
+
+**Review Tests:**
+- Bash: 25 tests
+- PowerShell: 14 tests
+- Subtotal: 39 tests
+
+**Total: 70 tests**
 
 ## Contributing Tests
 
@@ -418,7 +473,9 @@ Planned test improvements:
 ## See Also
 
 - [Worktree Test Documentation](worktree/README.md)
+- [Review Test Documentation](review/README.md)
 - [Git Worktree User Guide](../docs-plus/04_git_worktrees/README.md)
+- [Review Command Guide](../docs-plus/06_core_commands/10_review/readme.md)
 - [SpecKit Plus Commands](../templates/commands/)
 
 ## Support
