@@ -51,7 +51,15 @@ if [[ -z "$TITLE" ]]; then
   exit 1
 fi
 
-REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+# Get repository root (supports worktrees)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$SCRIPT_DIR/common.sh" ]]; then
+  source "$SCRIPT_DIR/common.sh"
+  REPO_ROOT=$(get_repo_root)
+else
+  # Fallback if common.sh not found
+  REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+fi
 ADR_DIR="$REPO_ROOT/history/adr"
 mkdir -p "$ADR_DIR"
 

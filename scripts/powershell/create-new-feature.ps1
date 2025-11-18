@@ -133,12 +133,24 @@ if (-not $fallbackRoot) {
     exit 1
 }
 
+# Source common.ps1 for worktree support
+$commonScript = Join-Path $PSScriptRoot "common.ps1"
+if (Test-Path $commonScript) {
+    . $commonScript
+}
+
 try {
-    $repoRoot = git rev-parse --show-toplevel 2>$null
-    if ($LASTEXITCODE -eq 0) {
+    # Use Get-RepoRoot if available (supports worktrees), otherwise fallback
+    if (Get-Command Get-RepoRoot -ErrorAction SilentlyContinue) {
+        $repoRoot = Get-RepoRoot
         $hasGit = $true
     } else {
-        throw "Git not available"
+        $repoRoot = git rev-parse --show-toplevel 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            $hasGit = $true
+        } else {
+            throw "Git not available"
+        }
     }
 } catch {
     $repoRoot = $fallbackRoot
