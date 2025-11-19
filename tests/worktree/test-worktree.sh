@@ -22,6 +22,9 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 TEST_BASE_DIR="${TEST_BASE_DIR:-/tmp/speckit-worktree-tests}"
+# Resolve to physical path to avoid macOS /tmp vs /private/tmp mismatches
+mkdir -p "$TEST_BASE_DIR"
+TEST_BASE_DIR=$(cd "$TEST_BASE_DIR" && pwd -P)
 VERBOSE=false
 KEEP_TEST_DIRS=false
 
@@ -69,24 +72,24 @@ done
 # ============================================================================
 
 log_info() {
-    echo -e "${BLUE}[INFO]${NC} $*"
+    echo -e "${BLUE}[INFO]${NC} $*" >&2
 }
 
 log_success() {
-    echo -e "${GREEN}[PASS]${NC} $*"
+    echo -e "${GREEN}[PASS]${NC} $*" >&2
 }
 
 log_error() {
-    echo -e "${RED}[FAIL]${NC} $*"
+    echo -e "${RED}[FAIL]${NC} $*" >&2
 }
 
 log_warning() {
-    echo -e "${YELLOW}[WARN]${NC} $*"
+    echo -e "${YELLOW}[WARN]${NC} $*" >&2
 }
 
 log_verbose() {
     if [[ "$VERBOSE" == "true" ]]; then
-        echo -e "${NC}       $*${NC}"
+        echo -e "${NC}       $*${NC}" >&2
     fi
 }
 
@@ -102,6 +105,7 @@ assert_equals() {
         log_error "$message"
         log_verbose "Expected: '$expected'"
         log_verbose "Actual:   '$actual'"
+        CURRENT_TEST_FAILED=1
         return 1
     fi
 }
@@ -115,6 +119,7 @@ assert_true() {
     else
         log_error "$message"
         log_verbose "Condition was false"
+        CURRENT_TEST_FAILED=1
         return 1
     fi
 }
@@ -128,6 +133,7 @@ assert_false() {
     else
         log_error "$message"
         log_verbose "Condition was true"
+        CURRENT_TEST_FAILED=1
         return 1
     fi
 }
@@ -140,6 +146,7 @@ assert_file_exists() {
         return 0
     else
         log_error "$message"
+        CURRENT_TEST_FAILED=1
         return 1
     fi
 }
@@ -152,6 +159,7 @@ assert_dir_exists() {
         return 0
     else
         log_error "$message"
+        CURRENT_TEST_FAILED=1
         return 1
     fi
 }
@@ -165,6 +173,7 @@ assert_command_succeeds() {
     else
         log_error "$message"
         log_verbose "Command failed: $*"
+        CURRENT_TEST_FAILED=1
         return 1
     fi
 }
@@ -178,6 +187,7 @@ assert_command_fails() {
     else
         log_error "$message"
         log_verbose "Command succeeded when it should have failed: $*"
+        CURRENT_TEST_FAILED=1
         return 1
     fi
 }
@@ -188,10 +198,13 @@ run_test() {
     local test_func="$2"
 
     TESTS_RUN=$((TESTS_RUN + 1))
+    CURRENT_TEST_FAILED=0
 
     log_info "Running: $test_name"
 
-    if $test_func; then
+    $test_func
+
+    if [[ "$CURRENT_TEST_FAILED" -eq 0 ]]; then
         TESTS_PASSED=$((TESTS_PASSED + 1))
         log_success "$test_name"
         return 0
@@ -216,6 +229,7 @@ setup_test_environment() {
 
     mkdir -p "$TEST_BASE_DIR"
     cd "$TEST_BASE_DIR"
+    TEST_BASE_DIR=$(pwd -P)
 
     log_verbose "Test directory: $TEST_BASE_DIR"
 }
@@ -259,7 +273,8 @@ create_test_repo() {
     git commit -m "Initial commit" >/dev/null 2>&1
 
     log_verbose "Created test repo: $repo_path"
-    echo "$repo_path"
+    # Return physical path to avoid /tmp vs /private/tmp mismatches on macOS
+    cd "$repo_path" && pwd -P
 }
 
 # ============================================================================
@@ -288,10 +303,10 @@ test_is_worktree_in_worktree() {
 
     # Create a worktree
     mkdir -p "$TEST_BASE_DIR/worktrees"
-    git worktree add "$TEST_BASE_DIR/worktrees/test-branch" -b test-branch >/dev/null 2>&1
+    git worktree add "$TEST_BASE_DIR/worktrees/test-branch-is-worktree" -b test-branch-is-worktree >/dev/null 2>&1
 
     # Switch to worktree
-    cd "$TEST_BASE_DIR/worktrees/test-branch"
+    cd "$TEST_BASE_DIR/worktrees/test-branch-is-worktree"
 
     source "$repo_path/scripts/bash/common.sh"
 
@@ -322,10 +337,10 @@ test_get_repo_root_in_worktree() {
 
     # Create a worktree
     mkdir -p "$TEST_BASE_DIR/worktrees"
-    git worktree add "$TEST_BASE_DIR/worktrees/test-branch" -b test-branch >/dev/null 2>&1
+    git worktree add "$TEST_BASE_DIR/worktrees/test-branch-repo-root" -b test-branch-repo-root >/dev/null 2>&1
 
     # Switch to worktree
-    cd "$TEST_BASE_DIR/worktrees/test-branch"
+    cd "$TEST_BASE_DIR/worktrees/test-branch-repo-root"
 
     source "$repo_path/scripts/bash/common.sh"
 
@@ -340,9 +355,9 @@ test_get_worktree_dir_in_worktree() {
     cd "$repo_path"
 
     # Create a worktree
-    local worktree_path="$TEST_BASE_DIR/worktrees/test-branch"
+    local worktree_path="$TEST_BASE_DIR/worktrees/test-branch-worktree-dir"
     mkdir -p "$TEST_BASE_DIR/worktrees"
-    git worktree add "$worktree_path" -b test-branch >/dev/null 2>&1
+    git worktree add "$worktree_path" -b test-branch-worktree-dir >/dev/null 2>&1
 
     # Switch to worktree
     cd "$worktree_path"
@@ -360,10 +375,10 @@ test_get_git_common_dir() {
 
     # Create a worktree
     mkdir -p "$TEST_BASE_DIR/worktrees"
-    git worktree add "$TEST_BASE_DIR/worktrees/test-branch" -b test-branch >/dev/null 2>&1
+    git worktree add "$TEST_BASE_DIR/worktrees/test-branch-common-dir" -b test-branch-common-dir >/dev/null 2>&1
 
     # Switch to worktree
-    cd "$TEST_BASE_DIR/worktrees/test-branch"
+    cd "$TEST_BASE_DIR/worktrees/test-branch-common-dir"
 
     source "$repo_path/scripts/bash/common.sh"
 

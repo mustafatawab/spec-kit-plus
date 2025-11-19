@@ -85,7 +85,7 @@ check_existing_branches() {
     local short_name="$1"
 
     # Fetch all remotes to get latest branch info (suppress errors if no remotes)
-    git fetch --all --prune 2>/dev/null || true
+    git fetch --all --prune >/dev/null 2>/dev/null || true
 
     # Find all branches matching the pattern using git ls-remote (more reliable)
     # Extract numeric prefix (001, 002, etc.) from branch names
@@ -142,6 +142,20 @@ else
             exit 1
         fi
         HAS_GIT=false
+    fi
+fi
+
+# Check for detached HEAD state
+if [ "$HAS_GIT" = true ]; then
+    CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+    if [ "$CURRENT_BRANCH" = "HEAD" ]; then
+        echo "ERROR: Currently in detached HEAD state" >&2
+        echo "" >&2
+        echo "Please checkout or create a feature branch first:" >&2
+        echo "  git checkout -b 001-feature-name" >&2
+        echo "  or" >&2
+        echo "  git checkout main" >&2
+        exit 1
     fi
 fi
 

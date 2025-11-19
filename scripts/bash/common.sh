@@ -327,11 +327,11 @@ create_worktree() {
     if git rev-parse --verify "$branch_name" >/dev/null 2>&1; then
         # Branch exists, create worktree from it
         echo "Creating worktree for existing branch '$branch_name'..." >&2
-        git worktree add "$worktree_path" "$branch_name"
+        git worktree add "$worktree_path" "$branch_name" >&2
     else
         # Create new branch and worktree
         echo "Creating new branch '$branch_name' and worktree..." >&2
-        git worktree add -b "$branch_name" "$worktree_path"
+        git worktree add -b "$branch_name" "$worktree_path" >&2
     fi
 
     if [[ $? -eq 0 ]]; then
