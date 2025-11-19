@@ -207,6 +207,35 @@ function Get-Worktrees {
     git worktree list
 }
 
+# Validate branch name according to git-check-ref-format rules
+function Test-BranchName {
+    param([string]$Name)
+
+    # Check for spaces
+    if ($Name -match '\s') {
+        Write-Error "Branch name cannot contain spaces"
+        $suggested = $Name -replace '\s', '-'
+        Write-Host "Use hyphens instead: $suggested" -ForegroundColor Yellow
+        return $false
+    }
+
+    # Check length
+    if ($Name.Length -gt 200) {
+        Write-Error "Branch name too long (max 200 characters)"
+        Write-Host "Current length: $($Name.Length)" -ForegroundColor Yellow
+        return $false
+    }
+
+    # Check invalid characters
+    if ($Name -match '[\[\]^~:?*\\]' -or $Name -match '\.\.' -or $Name -match '^\.' -or $Name -match '\.$') {
+        Write-Error "Branch name contains invalid characters"
+        Write-Host "Avoid: spaces [ ] ^ ~ : ? * \ .. (leading/trailing dots)" -ForegroundColor Yellow
+        return $false
+    }
+
+    return $true
+}
+
 # Create a new git worktree for a feature branch
 # Usage: New-Worktree -BranchName "001-feature" [-WorktreePath "path"]
 function New-Worktree {
@@ -220,12 +249,25 @@ function New-Worktree {
 
     if (-not (Test-HasGit)) {
         Write-Error "Not in a git repository"
+        Write-Host ""
+        Write-Host "Worktrees require a git repository. Initialize one with:" -ForegroundColor Yellow
+        Write-Host "  git init" -ForegroundColor Cyan
         return
     }
 
     if ([string]::IsNullOrWhiteSpace($BranchName)) {
         Write-Error "Branch name required"
-        Write-Output "Usage: New-Worktree -BranchName <branch-name> [-WorktreePath <path>]"
+        Write-Host ""
+        Write-Host "Usage: New-Worktree -BranchName <branch-name> [-WorktreePath <path>]" -ForegroundColor Yellow
+        Write-Host ""
+        Write-Host "Example:" -ForegroundColor Yellow
+        Write-Host "  New-Worktree -BranchName '001-user-auth'" -ForegroundColor Cyan
+        Write-Host "  New-Worktree -BranchName '002-dashboard' -WorktreePath '../my-worktrees/dashboard'" -ForegroundColor Cyan
+        return
+    }
+
+    # Validate branch name
+    if (-not (Test-BranchName -Name $BranchName)) {
         return
     }
 
@@ -237,6 +279,17 @@ function New-Worktree {
         $worktreesDir = Join-Path (Split-Path $repoRoot -Parent) "worktrees"
         New-Item -Path $worktreesDir -ItemType Directory -Force | Out-Null
         $WorktreePath = Join-Path $worktreesDir $BranchName
+    }
+
+    # Check if worktree path already exists
+    if (Test-Path $WorktreePath) {
+        Write-Error "Path already exists: $WorktreePath"
+        if (Test-Path $WorktreePath -PathType Container) {
+            Write-Host "Remove the directory first:" -ForegroundColor Yellow
+            Write-Host "  Remove-Item -Recurse '$WorktreePath'" -ForegroundColor Cyan
+            Write-Host "Or choose a different path" -ForegroundColor Yellow
+        }
+        return
     }
 
     # Check if branch already exists
@@ -280,8 +333,24 @@ function Remove-Worktree {
 
     if ([string]::IsNullOrWhiteSpace($WorktreePath)) {
         Write-Error "Worktree path required"
-        Write-Output "Usage: Remove-Worktree -WorktreePath <path>"
+        Write-Host ""
+        Write-Host "Usage: Remove-Worktree -WorktreePath <path>" -ForegroundColor Yellow
+        Write-Host ""
+        Write-Host "To list existing worktrees:" -ForegroundColor Yellow
+        Write-Host "  git worktree list" -ForegroundColor Cyan
         return
+    }
+
+    # Check if worktree has uncommitted changes
+    if ((Test-Path $WorktreePath) -and (git -C $WorktreePath status --porcelain 2>$null | Where-Object { $_ })) {
+        Write-Warning "Worktree has uncommitted changes:"
+        git -C $WorktreePath status --short
+        Write-Host ""
+        $confirm = Read-Host "Continue with removal? (y/N)"
+        if ($confirm -ne 'y' -and $confirm -ne 'Y') {
+            Write-Host "Aborted." -ForegroundColor Yellow
+            return
+        }
     }
 
     git worktree remove $WorktreePath

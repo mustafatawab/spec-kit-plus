@@ -321,9 +321,10 @@ Additional commands for enhanced quality and validation:
 
 ### Environment Variables
 
-| Variable          | Description                                                                                                                                                                                                                                                                                       |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SPECIFY_FEATURE` | Override feature detection for non-Git repositories. Set to the feature directory name (e.g., `001-photo-albums`) to work on a specific feature when not using Git branches.<br/>\*\*Must be set in the context of the agent you're working with prior to using `/sp.plan` or follow-up commands. |
+| Variable                  | Description                                                                                                                                                                                                                                                                                       |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SPECIFY_FEATURE`         | Override feature detection for non-Git repositories. Set to the feature directory name (e.g., `001-photo-albums`) to work on a specific feature when not using Git branches.<br/>\*\*Must be set in the context of the agent you're working with prior to using `/sp.plan` or follow-up commands. |
+| `SPECIFY_WORKTREE_MODE`   | Enable automatic worktree creation for parallel feature development. When set to `true`, `/sp.specify` creates worktrees instead of branches. Each feature gets its own directory while specs/ and history/ remain shared.<br/>**Usage:** `export SPECIFY_WORKTREE_MODE=true` |
 
 ## 📚 Core Philosophy
 

@@ -19,7 +19,14 @@ Detect the user's intent from their message:
 When user wants to list worktrees:
 
 ```bash
-cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+# Get repo root (worktree-aware)
+SCRIPT_DIR="$PWD"
+if [ -f "scripts/bash/common.sh" ]; then
+    source scripts/bash/common.sh
+    cd "$(get_repo_root)"
+else
+    cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+fi
 git worktree list
 ```
 
@@ -44,11 +51,18 @@ b. **Determine worktree location**:
 c. **Create the worktree**:
 
 ```bash
-# Get repo root
-REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-
-# Source common functions
-source "$REPO_ROOT/scripts/bash/common.sh"
+# Source common functions first for worktree-aware operations
+SCRIPT_DIR="$PWD"
+if [ -f "scripts/bash/common.sh" ]; then
+    source scripts/bash/common.sh
+    REPO_ROOT="$(get_repo_root)"
+elif [ -f "$SCRIPT_DIR/scripts/bash/common.sh" ]; then
+    source "$SCRIPT_DIR/scripts/bash/common.sh"
+    REPO_ROOT="$(get_repo_root)"
+else
+    # Fallback if common.sh not found
+    REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+fi
 
 # Create worktree
 BRANCH_NAME="NNN-feature-name"  # Use actual branch name
@@ -82,11 +96,18 @@ b. **Get worktree path** from user or detect current
 c. **Remove the worktree**:
 
 ```bash
-# Get repo root
-REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-
-# Source common functions
-source "$REPO_ROOT/scripts/bash/common.sh"
+# Source common functions first for worktree-aware operations
+SCRIPT_DIR="$PWD"
+if [ -f "scripts/bash/common.sh" ]; then
+    source scripts/bash/common.sh
+    REPO_ROOT="$(get_repo_root)"
+elif [ -f "$SCRIPT_DIR/scripts/bash/common.sh" ]; then
+    source "$SCRIPT_DIR/scripts/bash/common.sh"
+    REPO_ROOT="$(get_repo_root)"
+else
+    # Fallback if common.sh not found
+    REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+fi
 
 # Remove worktree
 WORKTREE_PATH="/path/to/worktree"  # Use actual path
@@ -124,7 +145,13 @@ echo "  export SPECIFY_WORKTREE_MODE=true"
 c. **Create worktrees directory**:
 
 ```bash
-REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+# Get repo root (worktree-aware)
+if [ -f "scripts/bash/common.sh" ]; then
+    source scripts/bash/common.sh
+    REPO_ROOT="$(get_repo_root)"
+else
+    REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+fi
 mkdir -p "$REPO_ROOT/../worktrees"
 echo "✓ Created worktrees directory: $REPO_ROOT/../worktrees"
 ```

@@ -114,6 +114,17 @@ check_feature_branch() {
         return 0
     fi
 
+    # Check for detached HEAD state
+    if [[ "$branch" == "HEAD" ]]; then
+        echo "ERROR: Currently in detached HEAD state" >&2
+        echo "" >&2
+        echo "Please checkout or create a feature branch first:" >&2
+        echo "  git checkout -b 001-feature-name" >&2
+        echo "  or" >&2
+        echo "  git checkout main  # return to main branch" >&2
+        return 1
+    fi
+
     if [[ ! "$branch" =~ ^[0-9]{3}- ]]; then
         echo "ERROR: Not on a feature branch. Current branch: $branch" >&2
         echo "Feature branches should be named like: 001-feature-name" >&2
@@ -166,6 +177,22 @@ find_feature_dir_by_prefix() {
     fi
 }
 
+# Ensure repository structure exists
+ensure_repo_structure() {
+    local repo_root=$(get_repo_root)
+
+    # Create required directories if missing
+    mkdir -p "$repo_root/specs" "$repo_root/history"
+
+    # Create .gitkeep files to track empty directories
+    if [[ ! -f "$repo_root/specs/.gitkeep" ]]; then
+        touch "$repo_root/specs/.gitkeep"
+    fi
+    if [[ ! -f "$repo_root/history/.gitkeep" ]]; then
+        touch "$repo_root/history/.gitkeep"
+    fi
+}
+
 get_feature_paths() {
     local repo_root=$(get_repo_root)
     local current_branch=$(get_current_branch)
@@ -174,6 +201,9 @@ get_feature_paths() {
     if has_git; then
         has_git_repo="true"
     fi
+
+    # Ensure specs/ and history/ exist
+    ensure_repo_structure
 
     # Use prefix-based lookup to support multiple branches per spec
     local feature_dir=$(find_feature_dir_by_prefix "$repo_root" "$current_branch")
@@ -210,6 +240,40 @@ list_worktrees() {
     git worktree list
 }
 
+# Validate branch name according to git-check-ref-format rules
+validate_branch_name() {
+    local name="$1"
+
+    # Check for spaces
+    if [[ "$name" =~ [[:space:]] ]]; then
+        echo "ERROR: Branch name cannot contain spaces" >&2
+        echo "Use hyphens instead: ${name// /-}" >&2
+        return 1
+    fi
+
+    # Check length (Git ref limit is ~255, but we use 200 for safety)
+    if [[ ${#name} -gt 200 ]]; then
+        echo "ERROR: Branch name too long (max 200 characters)" >&2
+        echo "Current length: ${#name}" >&2
+        return 1
+    fi
+
+    # Check invalid characters per git-check-ref-format
+    if [[ "$name" =~ [\[\]^~:?*\\] ]] || [[ "$name" == *.. ]] || [[ "$name" == .* ]] || [[ "$name" == *. ]]; then
+        echo "ERROR: Branch name contains invalid characters" >&2
+        echo "Avoid: spaces [ ] ^ ~ : ? * \\ .. (leading/trailing dots)" >&2
+        return 1
+    fi
+
+    # Check for leading/trailing slashes or multiple consecutive slashes
+    if [[ "$name" == /* ]] || [[ "$name" == */ ]] || [[ "$name" == *//* ]]; then
+        echo "ERROR: Branch name has invalid slash usage" >&2
+        return 1
+    fi
+
+    return 0
+}
+
 # Create a new git worktree for a feature branch
 # Usage: create_worktree <branch-name> [worktree-path]
 create_worktree() {
@@ -218,14 +282,25 @@ create_worktree() {
 
     if ! has_git; then
         echo "ERROR: Not in a git repository" >&2
+        echo "" >&2
+        echo "Worktrees require a git repository. Initialize one with:" >&2
+        echo "  git init" >&2
         return 1
     fi
 
     if [[ -z "$branch_name" ]]; then
         echo "ERROR: Branch name required" >&2
+        echo "" >&2
         echo "Usage: create_worktree <branch-name> [worktree-path]" >&2
+        echo "" >&2
+        echo "Example:" >&2
+        echo "  create_worktree 001-user-auth" >&2
+        echo "  create_worktree 002-dashboard ../my-worktrees/dashboard" >&2
         return 1
     fi
+
+    # Validate branch name
+    validate_branch_name "$branch_name" || return 1
 
     # Get repo root for default path
     local repo_root=$(get_repo_root)
@@ -235,6 +310,17 @@ create_worktree() {
         local worktrees_dir="$repo_root/../worktrees"
         mkdir -p "$worktrees_dir"
         worktree_path="$worktrees_dir/$branch_name"
+    fi
+
+    # Check if worktree path already exists
+    if [[ -e "$worktree_path" ]]; then
+        echo "ERROR: Path already exists: $worktree_path" >&2
+        if [[ -d "$worktree_path" ]]; then
+            echo "Remove the directory first:" >&2
+            echo "  rm -rf '$worktree_path'" >&2
+            echo "Or choose a different path" >&2
+        fi
+        return 1
     fi
 
     # Check if branch already exists
@@ -268,8 +354,24 @@ remove_worktree() {
 
     if [[ -z "$worktree_path" ]]; then
         echo "ERROR: Worktree path required" >&2
+        echo "" >&2
         echo "Usage: remove_worktree <worktree-path>" >&2
+        echo "" >&2
+        echo "To list existing worktrees:" >&2
+        echo "  git worktree list" >&2
         return 1
+    fi
+
+    # Check if worktree has uncommitted changes
+    if [[ -d "$worktree_path" ]] && git -C "$worktree_path" status --porcelain 2>/dev/null | grep -q .; then
+        echo "WARNING: Worktree has uncommitted changes:" >&2
+        git -C "$worktree_path" status --short >&2
+        echo "" >&2
+        read -p "Continue with removal? (y/N): " confirm
+        if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+            echo "Aborted." >&2
+            return 1
+        fi
     fi
 
     git worktree remove "$worktree_path"

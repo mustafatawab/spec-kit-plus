@@ -729,7 +729,8 @@ main() {
     echo ""
 
     # Check git version
-    local git_version=$(git --version | grep -oP '\d+\.\d+' | head -1)
+    # Extract git version (macOS compatible - no grep -P)
+    local git_version=$(git --version | sed -n 's/^git version \([0-9]*\.[0-9]*\).*/\1/p')
     local git_major=$(echo "$git_version" | cut -d. -f1)
     local git_minor=$(echo "$git_version" | cut -d. -f2)
 
