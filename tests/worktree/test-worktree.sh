@@ -595,8 +595,19 @@ test_create_new_feature_normal_mode() {
     local repo_path=$(create_test_repo "test-create-feature-normal")
     cd "$repo_path"
 
+    # Ensure we're in normal mode (not worktree mode)
+    unset SPECIFY_WORKTREE_MODE
+
     # Run create-new-feature.sh in normal mode
-    local output=$("$repo_path/scripts/bash/create-new-feature.sh" --json --short-name "test-feature" --number 1 "Test feature description" 2>&1)
+    local output=$(bash "$repo_path/scripts/bash/create-new-feature.sh" --json --short-name "test-feature" --number 1 "Test feature description" 2>&1)
+    local exit_code=$?
+
+    # Debug: Check what happened
+    if [[ "$exit_code" -ne 0 ]]; then
+        log_error "create-new-feature.sh failed with exit code: $exit_code"
+        log_error "Output: $output"
+        return 1
+    fi
 
     # Should create branch, not worktree
     assert_command_succeeds "Branch should exist" git rev-parse --verify 001-test-feature
@@ -616,13 +627,22 @@ test_create_new_feature_worktree_mode() {
     # Enable worktree mode
     export SPECIFY_WORKTREE_MODE=true
 
-    # Run create-new-feature.sh
-    local output=$("$repo_path/scripts/bash/create-new-feature.sh" --json --short-name "test-feature" --number 1 "Test feature description" 2>&1)
+    # Run create-new-feature.sh (use number 5 to avoid conflicts with other tests)
+    local output=$(bash "$repo_path/scripts/bash/create-new-feature.sh" --json --short-name "test-feature" --number 5 "Test feature description" 2>&1)
+    local exit_code=$?
+
+    # Debug: Check what happened
+    if [[ "$exit_code" -ne 0 ]]; then
+        log_error "create-new-feature.sh failed with exit code: $exit_code"
+        log_error "Output: $output"
+        unset SPECIFY_WORKTREE_MODE
+        return 1
+    fi
 
     # Should create worktree
-    local worktree_path="$repo_path/../worktrees/001-test-feature"
+    local worktree_path="$repo_path/../worktrees/005-test-feature"
     assert_dir_exists "$worktree_path" "Worktree should be created"
-    assert_dir_exists "$repo_path/specs/001-test-feature" "Spec directory should exist in main repo"
+    assert_dir_exists "$repo_path/specs/005-test-feature" "Spec directory should exist in main repo"
 
     # Main repo should still be on main
     local main_branch=$(cd "$repo_path" && git branch --show-current)
@@ -706,10 +726,10 @@ test_multiple_worktrees_simultaneously() {
 
     source "$repo_path/scripts/bash/common.sh"
 
-    # Create multiple worktrees
-    local wt1=$(create_worktree "001-feature-a")
-    local wt2=$(create_worktree "002-feature-b")
-    local wt3=$(create_worktree "003-feature-c")
+    # Create multiple worktrees (use unique numbers to avoid conflicts with other tests)
+    local wt1=$(create_worktree "006-feature-a")
+    local wt2=$(create_worktree "007-feature-b")
+    local wt3=$(create_worktree "008-feature-c")
 
     # All should exist
     assert_dir_exists "$wt1" "Worktree 1 should exist"
